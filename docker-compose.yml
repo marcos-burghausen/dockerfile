@@ -4,11 +4,12 @@ services:
 
   #php+apache
   php:
-    build: .
-    container_name: backend
-    working_dir: /var/www/html
+    image: marcosrafaelburghausen/php8.1-apache2.4
+    container_name: <container_name>
+    working_dir: /var/www/html/
     depends_on:
       - mysql
+      - redis
     networks:
       - network
     ports:
@@ -20,30 +21,33 @@ services:
       MYSQL_HOST: mysql
       MYSQL_PASSWORD: user
       MYSQL_USER: user
-      MYSQL_DATABASE: database
+      MYSQL_DATABASE: <container_name>
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: senha
 
   #node
   node:
-    build: .
-    container_name: frontend
+    image: marcosrafaelburghausen/node-19
+    container_name: <container_name>
     working_dir: /home/node/app
     stdin_open: true
     tty: true
-    command: bash -c "npm i && npm run serve"
+    command: bash -c "npm i && npm run dev -- --host"
     networks:
       - network
     ports:
-      - "4081:8080"
+      - "4081:5173"
     volumes:
       - "./frontend:/home/node/app"
     environment:
       BACK_HOST: php:4081/api
-      CHOKIDAR_USEPOLLING: 'true'     
-  
+      CHOKIDAR_USEPOLLING: 'true'
+
   #mysql
   mysql:
     image: mysql:8.0
-    container_name: database
+    container_name: <container_name>
     networks:
       - network
     ports:
@@ -56,7 +60,7 @@ services:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_PASSWORD: user
       MYSQL_USER: user
-      MYSQL_DATABASE: idr_database
+      MYSQL_DATABASE: <container_name>
 
   #phpmyadmin
   dbadmin:
@@ -69,10 +73,38 @@ services:
       - "4033:80"
     environment:
       PMA_HOST: mysql
-      PMA_PORT: 3306 
+      PMA_PORT: 3306
+
+  #redis
+  redis:
+    image: redis:7.0
+    container_name: <container_name>_session_database
+    command: bash -c "redis-server --requirepass senha"
+    networks:
+      - network
+    ports:
+      - "6379:6379"
+    volumes:
+      - "redis_db:/data"
+
+  #redis-commander
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-commander
+    restart: always
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=senha
+    ports:
+      - "8082:8081"
+    networks:
+      - network
 
 volumes:
   mysql_db:
+    driver: "local"
+  redis_db:
     driver: "local"
 
 networks:
